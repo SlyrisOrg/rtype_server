@@ -13,14 +13,15 @@ add_subdirectory(vendor/core)
 
 include(${CMAKE_CONFIG_PATH}/include.cmake)
 STANDARD_COMPILATION_SETTINGS()
+RTYPE_SERVER_CONFIG()
 
-find_package(Boost COMPONENTS system thread REQUIRED)
+find_package(Boost COMPONENTS system thread program_options REQUIRED)
 
 set(RTYPE_SERVER_SOURCES
         Project/main.cpp)
 
 add_executable(${PROJECT_NAME} ${RTYPE_SERVER_SOURCES})
-target_link_libraries(${PROJECT_NAME} Boost::system Boost::thread Boost::boost)
+target_link_libraries(${PROJECT_NAME} Boost::system Boost::thread Boost::program_options Boost::boost)
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Project)
 
 add_subdirectory(test)
