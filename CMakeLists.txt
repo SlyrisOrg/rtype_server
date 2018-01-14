@@ -9,19 +9,37 @@ set(BUILD_CORE_TESTS OFF CACHE BOOL "disable core tests" FORCE)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/vendor/core/cmake-utils/Module)
 set(CMAKE_CONFIG_PATH ${CMAKE_SOURCE_DIR}/vendor/core/cmake-utils)
+
+if (WIN32)
+    add_definitions(-D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
+    if (CMAKE_BUILD_TYPE MATCHES Debug)
+        set(BOOST_LIBRARYDIR $ENV{BOOST_ROOT}/debug/lib)
+    endif()
+endif(WIN32)
+
+find_package(Boost COMPONENTS system filesystem thread program_options REQUIRED)
+
 add_subdirectory(vendor/core)
 
 include(${CMAKE_CONFIG_PATH}/include.cmake)
 STANDARD_COMPILATION_SETTINGS()
 RTYPE_SERVER_CONFIG()
+CPPREST_CONFIG()
+find_package(Lua 5.3)
 
-find_package(Boost COMPONENTS system thread program_options REQUIRED)
+add_subdirectory(Project/rtype/netproto)
+add_subdirectory(Project/rtype/protocol)
+add_subdirectory(Project/rtype/master)
 
 set(RTYPE_SERVER_SOURCES
+        ${RTYPE_PROTO_HEADERS}
+        ${RTYPE_MASTER_SOURCES}
+        ${RTYPE_NETPROTO_SOURCES}
         Project/main.cpp)
 
 add_executable(${PROJECT_NAME} ${RTYPE_SERVER_SOURCES})
-target_link_libraries(${PROJECT_NAME} Boost::system Boost::thread Boost::program_options Boost::boost)
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Project)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Project/rtype)
+target_link_libraries(${PROJECT_NAME} Boost::system Boost::filesystem Boost::thread Boost::program_options Boost::boost
+        core-utils core-log core-meta core-serialization)
 
 add_subdirectory(test)

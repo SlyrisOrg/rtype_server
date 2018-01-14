@@ -61,3 +61,4 @@ endmacro()
 
 ########################################################################################################################
 add_subdirectory(server-test)
+add_subdirectory(tcppacketreader)
