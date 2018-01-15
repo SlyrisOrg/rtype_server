@@ -194,7 +194,7 @@ namespace proto
         template <typename ...Types>
         static inline PacketUnserializerArray makeArray(meta::TypeList<Types...>) noexcept
         {
-            return {__unserializePacket<Types>...};
+            return {{__unserializePacket<Types>...}};
         }
 
         const PacketUnserializerArray _unserializers = makeArray(Packets{});

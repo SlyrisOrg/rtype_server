@@ -17,7 +17,7 @@ if (WIN32)
     endif()
 endif(WIN32)
 
-find_package(Boost COMPONENTS system filesystem thread program_options REQUIRED)
+find_package(Boost COMPONENTS random regex system filesystem thread program_options REQUIRED)
 
 add_subdirectory(vendor/core)
 
@@ -30,16 +30,22 @@ find_package(Lua 5.3)
 add_subdirectory(Project/rtype/netproto)
 add_subdirectory(Project/rtype/protocol)
 add_subdirectory(Project/rtype/master)
+add_subdirectory(Project/rtype/api)
+add_subdirectory(Project/rtype/error)
 
 set(RTYPE_SERVER_SOURCES
         ${RTYPE_PROTO_HEADERS}
         ${RTYPE_MASTER_SOURCES}
         ${RTYPE_NETPROTO_SOURCES}
+        ${RTYPE_API_SOURCES}
+        ${RTYPE_API_HEADERS}
+        ${RTYPE_ERROR_SOURCES}
+        ${RTYPE_ERROR_HEADERS}
         Project/main.cpp)
 
 add_executable(${PROJECT_NAME} ${RTYPE_SERVER_SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Project/rtype)
 target_link_libraries(${PROJECT_NAME} Boost::system Boost::filesystem Boost::thread Boost::program_options Boost::boost
-        core-utils core-log core-meta core-serialization)
+        cpprestsdk::cpprest OpenSSL::SSL core-utils core-log core-meta core-serialization)
 
 add_subdirectory(test)

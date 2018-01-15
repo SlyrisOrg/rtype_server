@@ -5,23 +5,17 @@
 
 cmake_minimum_required(VERSION 3.7)
 
-
-########################################################################################################################
-
-########################################################################################################################
-#                               Force static on MSVC                                                                   #
-#                                                                                                                      #
-########################################################################################################################
+set(BUILD_SHARED_LIBS ON CACHE BOOL "SHARED_OPTIONS")
 
 if (MSVC)
     foreach (flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG
             CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-        if (${flag_var} MATCHES "/MD")
-            string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-        endif (${flag_var} MATCHES "/MD")
-        if (${flag_var} MATCHES "/MDd")
-            string(REGEX REPLACE "/MDd" "/MTd" ${flag_var} "${${flag_var}}")
-        endif (${flag_var} MATCHES "/MDd")
+        if (${flag_var} MATCHES "/MT")
+            string(REGEX REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
+        endif (${flag_var} MATCHES "/MT")
+        if (${flag_var} MATCHES "/MTd")
+            string(REGEX REPLACE "/MTd" "/MDd" ${flag_var} "${${flag_var}}")
+        endif (${flag_var} MATCHES "/MTd")
     endforeach (flag_var)
 endif (MSVC)
 
@@ -56,9 +50,15 @@ macro(add_test_core NAME_TEST NAME_EXECUTABLE SOURCE)
     message(STATUS "${NAME_TEST} ${NAME_EXECUTABLE} ${SOURCE}")
     add_executable(${NAME_EXECUTABLE} ${SOURCE})
     target_link_libraries(${NAME_EXECUTABLE} gtest gtest_main)
+if(WIN32)
+    add_custom_command(TARGET ${NAME_EXECUTABLE} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE} ${CMAKE_SOURCE_DIR}/bin)
+endif()
     add_test(NAME ${NAME_TEST} COMMAND $<TARGET_FILE:${NAME_EXECUTABLE}>)
 endmacro()
 
 ########################################################################################################################
 add_subdirectory(server-test)
 add_subdirectory(tcppacketreader)
+add_subdirectory(api-test)
