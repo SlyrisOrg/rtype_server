@@ -15,12 +15,13 @@
 namespace asio = boost::asio;
 using tcp = asio::ip::tcp;
 
+template <typename Unformatter>
 class TCPPacketReader
 {
     static constexpr const size_t chunkSize = 2;
 
 public:
-    using Packet = proto::Packet;
+    using Packet = typename Unformatter::Packet;
 
     explicit TCPPacketReader(tcp::socket &&sock) noexcept : _sock(std::move(sock))
     {
@@ -79,7 +80,7 @@ public:
     }
 
 private:
-    proto::Unformatter _uf;
+    Unformatter _uf;
     std::function<void(const boost::system::error_code &ec)> _cb;
     size_t _used{0};
     proto::Buffer _buff;

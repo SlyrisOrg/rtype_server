@@ -5,6 +5,22 @@
 #include <gtest/gtest.h>
 #include <netproto/TCPPacketReader.hpp>
 
+struct Lala
+{
+    int lol;
+    float tralala;
+
+    static constexpr auto serializableFields() noexcept
+    {
+        return meta::makeMap(reflect_member(&Lala::lol),
+                             reflect_member(&Lala::tralala));
+    }
+};
+
+using Packets = meta::TypeList<Lala>;
+using TCPReader = TCPPacketReader<proto::Unformatter<Packets>>;
+using Packet = typename TCPReader::Packet;
+
 TEST(TCPPacketReader, Basic)
 {
     constexpr unsigned short port = 31344;
@@ -19,14 +35,14 @@ TEST(TCPPacketReader, Basic)
     acc.async_accept(servSock, [&worked, &servSock](const boost::system::error_code &ec) {
         if (ec)
             return;
-        std::shared_ptr<TCPPacketReader> _reader = std::make_shared<TCPPacketReader>(std::move(servSock));
+        std::shared_ptr<TCPReader> _reader = std::make_shared<TCPReader>(std::move(servSock));
         _reader->asyncRead([&worked, _reader](const boost::system::error_code &ec) {
             if (ec)
                 return;
             while (_reader->available() > 0) {
-                proto::Packet p = _reader->pop();
-                if (std::holds_alternative<proto::Lala>(p)) {
-                    proto::Lala l = std::get<proto::Lala>(p);
+                Packet p = _reader->pop();
+                if (std::holds_alternative<Lala>(p)) {
+                    Lala l = std::get<Lala>(p);
                     if (l.lol == 2 && l.tralala == 3.5f)
                         worked = true;
                 }
@@ -40,8 +56,8 @@ TEST(TCPPacketReader, Basic)
     client.async_connect(endpoint, [&client](const boost::system::error_code &ec) {
         if (ec)
             return;
-        proto::Formatter f;
-        proto::Lala l;
+        proto::Formatter<Packets> f;
+        Lala l;
         l.lol = 2;
         l.tralala = 3.5f;
         f.serialize(l);

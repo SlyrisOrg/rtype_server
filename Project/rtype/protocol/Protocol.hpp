@@ -6,22 +6,29 @@
 #define RTYPE_PROTO_PROTOCOL_HPP
 
 #include <cstring>
-#include <vector>
-#include <iterator>
 #include <variant>
 #include <functional>
 #include <array>
 #include <utils/Endian.hpp>
 #include <utils/Span.hpp>
-#include <protocol/Packets.hpp>
+#include <meta/List.hpp>
+#include <serialization/Serialization.hpp>
 
 namespace proto
 {
+    namespace details
+    {
+        template <typename Packets, typename T>
+        static inline constexpr size_t getID() noexcept
+        {
+            return meta::list::Position<Packets, T>();
+        }
+    }
+
     using Buffer = std::vector<std::byte>;
     using BufferSpan = utils::Span<std::byte>;
 
-    using Packet = meta::list::Convert<meta::list::PushFront<Packets, std::monostate>, std::variant>;
-
+    template <typename Packets>
     class Formatter
     {
     private:
@@ -45,7 +52,7 @@ namespace proto
         template <typename Object>
         void __startObject([[maybe_unused]] size_t depth) noexcept
         {
-            __addValue(getID<Object>());
+            __addValue(details::getID<Packets, Object>());
         }
 
         void __finishObject([[maybe_unused]] size_t depth) noexcept
@@ -104,6 +111,7 @@ namespace proto
         }
     };
 
+    template <typename Packets>
     class Unformatter
     {
     public:
@@ -115,6 +123,8 @@ namespace proto
                 return "Not enough data to unserialize";
             }
         };
+
+        using Packet = meta::list::Convert<meta::list::PushFront<Packets, std::monostate>, std::variant>;
 
     private:
         template <typename T>
@@ -189,16 +199,17 @@ namespace proto
             return {std::move(ret)};
         }
 
-        using PacketUnserializerArray = std::array<std::function<Packet(BufferSpan)>, meta::list::Length<Packets>::value>;
+        using PacketUnserializerArray = std::array<std::function<Packet(
+            BufferSpan)>, meta::list::Length<Packets>::value>;
 
         template <typename ...Types>
-        static inline PacketUnserializerArray makeArray(meta::TypeList<Types...>) noexcept
+        static inline constexpr PacketUnserializerArray makeArray(meta::TypeList<Types...>) noexcept
         {
             return {{__unserializePacket<Types>...}};
         }
 
         const PacketUnserializerArray _unserializers = makeArray(Packets{});
     };
-}
+};
 
 #endif //RTYPE_PROTO_PROTOCOL_HPP
