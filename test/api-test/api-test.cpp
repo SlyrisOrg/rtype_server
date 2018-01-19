@@ -57,6 +57,7 @@ TEST(APITest, LoginBadCredentials)
 
 TEST(APITest, GetData)
 {
+    std::this_thread::sleep_for(1s);
     rtype::Credential cred{"joriss", "joriss123"};
     rtype::Player player;
     std::error_code ec;

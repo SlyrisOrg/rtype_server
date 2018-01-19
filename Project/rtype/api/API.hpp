@@ -5,11 +5,11 @@
 #ifndef RTYPE_SERVER_API_HPP
 #define RTYPE_SERVER_API_HPP
 
+#include <log/Logger.hpp>
 #undef always_inline
 #include <cpprest/json.h>
 #include <cpprest/http_client.h>
 #include <cpprest/asyncrt_utils.h>
-#include <log/Logger.hpp>
 #include <api/Credential.hpp>
 #include <api/Player.hpp>
 #include <error/RTypeError.hpp>
@@ -63,7 +63,6 @@ namespace rtype
             _setRequest(web::http::methods::POST);
             _request.set_body(postData.serialize());
             _debugRequest(_request);
-
 
             return client.request(_request).then([&ec, &player](const web::http::http_response &response) {
                 if (response.status_code() == web::http::status_codes::OK) {
@@ -126,17 +125,15 @@ namespace rtype
                         _log(lg::Info) << ec.message() << std::endl;
 #if defined(USING_WINDOWS)
                         const utility::string_t &wnickname = response.at(U("content")).as_object().at(U("nickname")).as_string();
-                        player.setPseudo(utility::conversions::utf16_to_utf8(wnickname));
+                        player.setNickname(utility::conversions::utf16_to_utf8(wnickname));
 #else
-                        player.setPseudo(response.at(U("content")).as_object().at(U("nickname")).as_string());
+                        player.setNickname(response.at(U("content")).as_object().at(U("nickname")).as_string());
 #endif
-                        const auto &profile = response.at(U("content")).as_object().at(
-                            U("profile")).as_object();
+                        const auto &profile = response.at(U("content")).as_object().at(U("profile")).as_object();
                         player.setXP(static_cast<float>(profile.at(U("experience")).as_double()));
                         player.setLvl(static_cast<unsigned int>(profile.at(U("level")).as_integer()));
                         player.setGold(static_cast<unsigned int>(profile.at(U("gold")).as_integer()));
                         player.setFaction(static_cast<Player::FactionT>(profile.at(U("faction")).as_integer()));
-
                     } else {
                         _log(lg::Warning) << ec.message() << std::endl;
                     }

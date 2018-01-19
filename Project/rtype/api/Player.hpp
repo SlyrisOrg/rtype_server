@@ -30,12 +30,12 @@ namespace rtype
             return _authToken;
         }
 
-        void setPseudo(std::string pseudo) noexcept
+        void setNickname(std::string pseudo) noexcept
         {
             _nickname = std::move(pseudo);
         }
 
-        const std::string &getPseudo() const noexcept
+        const std::string &getNickname() const noexcept
         {
             return _nickname;
         }
