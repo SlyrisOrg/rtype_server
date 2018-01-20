@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <netproto/TCPPacketReader.hpp>
+#include <netproto/TCPProtocolConnection.hpp>
 
 struct Lala
 {
@@ -18,8 +18,8 @@ struct Lala
 };
 
 using Packets = meta::TypeList<Lala>;
-using TCPReader = TCPPacketReader<proto::Unformatter<Packets>>;
-using Packet = typename TCPReader::Packet;
+using TCPConn = TCPProtocolConnection<Packets>;
+using Packet = typename TCPConn::Packet;
 
 TEST(TCPPacketReader, Basic)
 {
@@ -27,20 +27,23 @@ TEST(TCPPacketReader, Basic)
     asio::io_service io;
     tcp::acceptor acc(io, tcp::v4());
     bool worked = false;
+    TCPConn *reader = nullptr;
+    TCPConn *writer = nullptr;
 
+    acc.set_option(tcp::acceptor::reuse_address(true));
     ASSERT_NO_THROW(acc.bind(tcp::endpoint(tcp::v4(), port)));
     ASSERT_NO_THROW(acc.listen(1));
 
     tcp::socket servSock(io);
-    acc.async_accept(servSock, [&worked, &servSock](const boost::system::error_code &ec) {
+    acc.async_accept(servSock, [&reader, &worked, &servSock](const boost::system::error_code &ec) {
         if (ec)
             return;
-        std::shared_ptr<TCPReader> _reader = std::make_shared<TCPReader>(std::move(servSock));
-        _reader->asyncRead([&worked, _reader](const boost::system::error_code &ec) {
+        reader = new TCPConn(std::move(servSock));
+        reader->asyncRead([&worked, &reader](const boost::system::error_code &ec) {
             if (ec)
                 return;
-            while (_reader->available() > 0) {
-                Packet p = _reader->pop();
+            while (reader->available() > 0) {
+                Packet p = reader->pop();
                 if (std::holds_alternative<Lala>(p)) {
                     Lala l = std::get<Lala>(p);
                     if (l.lol == 2 && l.tralala == 3.5f)
@@ -53,22 +56,18 @@ TEST(TCPPacketReader, Basic)
     tcp::socket client(io);
 
     tcp::endpoint endpoint(asio::ip::address::from_string("127.0.0.1"), port);
-    client.async_connect(endpoint, [&client](const boost::system::error_code &ec) {
+    client.async_connect(endpoint, [&writer, &client](const boost::system::error_code &ec) {
         if (ec)
             return;
-        proto::Formatter<Packets> f;
+        writer = new TCPConn(std::move(client));
         Lala l;
         l.lol = 2;
         l.tralala = 3.5f;
-        f.serialize(l);
-        f.prefixSize();
-        auto buff = f.extract();
-        size_t halfSize = buff.size() / 2;
-        client.write_some(asio::buffer(buff.data(), halfSize));
-        client.write_some(asio::buffer(buff.data() + halfSize, buff.size() - halfSize));
-        client.close();
+        writer->asyncWrite(l, [](const boost::system::error_code &, size_t) {});
     });
 
     io.run();
     ASSERT_TRUE(worked);
+    delete reader;
+    delete writer;
 }

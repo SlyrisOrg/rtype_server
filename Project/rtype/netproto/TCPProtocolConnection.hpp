@@ -15,15 +15,17 @@
 namespace asio = boost::asio;
 using tcp = asio::ip::tcp;
 
-template <typename Unformatter>
-class TCPPacketReader
+template <typename Packets>
+class TCPProtocolConnection
 {
     static constexpr const size_t chunkSize = 2;
 
 public:
+    using Unformatter = proto::Unformatter<Packets>;
+    using Formatter = proto::Formatter<Packets>;
     using Packet = typename Unformatter::Packet;
 
-    explicit TCPPacketReader(tcp::socket &&sock) noexcept : _sock(std::move(sock))
+    explicit TCPProtocolConnection(tcp::socket &&sock) noexcept : _sock(std::move(sock))
     {
     }
 
@@ -37,13 +39,13 @@ private:
             if (_used > sizeof(size_t)) {
                 size_t packetSize = _uf.unserializeSize(_buff);
                 if (_buff.size() - sizeof(size_t) >= packetSize) {
-                        auto start = _buff.begin() + sizeof(size_t);
-                        _read.push(_uf.unserialize(proto::BufferSpan(start, start + packetSize)));
-                        size_t consumedSize = sizeof(size_t) + packetSize;
-                        _used -= consumedSize;
-                        _buff.erase(_buff.begin(), _buff.begin() + consumedSize);
-                        _cb({});
-                        return;
+                    auto start = _buff.begin() + sizeof(size_t);
+                    _read.push(_uf.unserialize(proto::BufferSpan(start, start + packetSize)));
+                    size_t consumedSize = sizeof(size_t) + packetSize;
+                    _used -= consumedSize;
+                    _buff.erase(_buff.begin(), _buff.begin() + consumedSize);
+                    _cb({});
+                    return;
                 }
             }
             _doRead();
@@ -54,7 +56,7 @@ private:
     {
         _buff.resize(_used + chunkSize);
         _sock.async_receive(asio::buffer(_buff.data() + _used, chunkSize),
-                            boost::bind(&TCPPacketReader::_handleRead, this,
+                            boost::bind(&TCPProtocolConnection::_handleRead, this,
                                         asio::placeholders::bytes_transferred,
                                         asio::placeholders::error));
     }
@@ -65,6 +67,15 @@ public:
     {
         _cb = std::forward<Functor>(f);
         _doRead();
+    }
+
+    template <typename PacketT, typename Functor>
+    auto asyncWrite(const PacketT &toSend, Functor &&f) noexcept
+    {
+        _fmt.serialize(toSend);
+        _fmt.prefixSize();
+        auto buf = _fmt.extract();
+        return _sock.async_write_some(asio::buffer(buf.data(), buf.size()), std::forward<Functor>(f));
     }
 
     size_t available() const noexcept
@@ -79,7 +90,18 @@ public:
         return ret;
     }
 
+    tcp::socket &socket() noexcept
+    {
+        return _sock;
+    }
+
+    const tcp::socket &socket() const noexcept
+    {
+        return _sock;
+    }
+
 private:
+    Formatter _fmt;
     Unformatter _uf;
     std::function<void(const boost::system::error_code &ec)> _cb;
     size_t _used{0};

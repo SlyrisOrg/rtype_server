@@ -11,8 +11,9 @@
 #include <boost/asio/signal_set.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/bind.hpp>
-#include <protocol/Protocol.hpp>
 #include <log/Logger.hpp>
+#include <protocol/Protocol.hpp>
+#include <master/PlayerPool.hpp>
 
 namespace asio = boost::asio;
 namespace fs = boost::filesystem;
@@ -59,7 +60,8 @@ namespace rtype::master
             if (!ec) {
                 _log(lg::Debug) << "Accepted a connection from "
                                 << _nextClient->remote_endpoint().address().to_string() << std::endl;
-                _nextClient->write_some(asio::buffer("Lala\n", 5));
+                _playerPool.addPlayer(std::move(*_nextClient));
+                _nextClient.reset();
             } else {
                 _log(lg::Warning) << "Unable to accept socket: " << ec.message() << std::endl;
             }
@@ -90,6 +92,7 @@ namespace rtype::master
         }
 
     private:
+        PlayerPool _playerPool;
         std::unique_ptr<tcp::socket> _nextClient{nullptr};
         asio::io_service _io;
         asio::signal_set _sigSet{_io, SIGINT, SIGTERM};
