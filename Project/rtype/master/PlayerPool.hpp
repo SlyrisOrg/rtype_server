@@ -52,7 +52,7 @@ namespace rtype::master
         void disconnectPlayer(PlayerData *playerData) noexcept
         {
             _log(logging::Debug) << "Closing connection to player '"
-                                 << playerData->info.getNickname() << "'" << std::endl;
+                                 << playerData->info.nickName << "'" << std::endl;
             _matchMaker.remove(&playerData->info);
             _players.erase(playerData);
             delete playerData;
@@ -76,6 +76,13 @@ namespace rtype::master
         void startMatch(matchmaking::Mode mode) noexcept
         {
             _log(logging::Debug) << "Starting game for mode " << mode << std::endl;
+            matchmaking::GameInformation game = _matchMaker.extractGame(mode);
+            auto logScope = _log(logging::Debug);
+            logScope << "The players are: ";
+            for (const auto &curPlayer : game.players) {
+                logScope << curPlayer->nickName << " ";
+            }
+            logScope << std::endl;
         }
 
         void handlePlayerPacket(const boost::system::error_code &ec, PlayerData *playerData)
@@ -89,30 +96,34 @@ namespace rtype::master
                 auto packet = playerData->reader.pop();
 
                 _log(logging::Debug) << "Got packet " << packetToString(packet) << " from "
-                                     << playerData->info.getNickname() << std::endl;
+                                     << playerData->info.nickName << std::endl;
 
-                static const auto visitor = meta::makeVisitor([&playerData](const matchmaking::Authenticate &auth) {
-                    playerData->info.setAuthToken(auth.authToken);
+                bool success = false;
+
+                if (std::holds_alternative<matchmaking::Authenticate>(packet)) {
+                    const auto &auth = std::get<matchmaking::Authenticate>(packet);
+                    playerData->info.authToken = auth.authToken;
                     std::error_code errorCode;
                     rtype::API::getData(playerData->info, errorCode).wait();
-                    return !errorCode;
-                }, [this, &playerData](const matchmaking::QueueJoin &queuej) {
-                    if (playerData->info.getAuthToken().empty()) {
-                        return false;
+                    success =  !errorCode;
+                } else if (std::holds_alternative<matchmaking::QueueJoin>(packet)) {
+                    const auto &queuej = std::get<matchmaking::QueueJoin>(packet);
+                    if (!playerData->info.authToken.empty()) {
+                        _matchMaker.addPlayer(&playerData->info, queuej.mode);
+                        boost::system::error_code err;
+                        playerData->reader.write(matchmaking::QueueStarted{}, err);
+                        if (!err) {
+                            if (_matchMaker.canStartMatch(queuej.mode)) {
+                                startMatch(queuej.mode);
+                            }
+                            success = true;
+                        }
                     }
-                    _matchMaker.addPlayer(&playerData->info, queuej.mode);
-                    if (_matchMaker.canStartMatch(queuej.mode)) {
-                        startMatch(queuej.mode);
-                    }
-                    return true;
-                }, [this, &playerData](const matchmaking::QueueLeave &) {
+                } else if (std::holds_alternative<matchmaking::QueueLeave>(packet)) {
                     _matchMaker.remove(&playerData->info);
-                    return true;
-                }, [](const std::monostate &) {
-                    return false;
-                });
+                }
 
-                if (!std::visit(visitor, packet)) {
+                if (!success) {
                     disconnectPlayer(playerData);
                 } else {
                     readPacket(playerData);

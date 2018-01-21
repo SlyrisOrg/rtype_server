@@ -7,86 +7,40 @@
 
 #include <string>
 #include <utils/Enums.hpp>
+#include <serialization/Serialization.hpp>
 
 namespace rtype
 {
     ENUM(Faction,
-        Bheet,
-        Kooy,
-        Maul);
+         Bheet,
+         Kooy,
+         Maul);
 
-    class Player
+    struct Player
     {
-    public:
         using FactionT = Faction::EnumType;
 
-        void setAuthToken(std::string authToken) noexcept
+        bool hasAuthToken() const noexcept
         {
-            _authToken = std::move(authToken);
+            return !authToken.empty();
         }
 
-        const std::string &getAuthToken() const noexcept
-        {
-            return _authToken;
-        }
+        std::string authToken;
+        std::string nickName;
+        float xp;
+        unsigned int gold;
+        unsigned int lvl;
+        FactionT faction;
 
-        void setNickname(std::string pseudo) noexcept
+        static constexpr auto serializableFields() noexcept
         {
-            _nickname = std::move(pseudo);
+            return meta::makeMap(reflect_member(&Player::authToken),
+                                 reflect_member(&Player::nickName),
+                                 reflect_member(&Player::xp),
+                                 reflect_member(&Player::gold),
+                                 reflect_member(&Player::lvl),
+                                 reflect_member(&Player::faction));
         }
-
-        const std::string &getNickname() const noexcept
-        {
-            return _nickname;
-        }
-
-        void setXP(float xp) noexcept
-        {
-            _xp = xp;
-        }
-
-        float getXP() const noexcept
-        {
-            return _xp;
-        }
-
-        void setLvl(unsigned int lvl) noexcept
-        {
-            _lvl = lvl;
-        }
-
-        unsigned int getLvl() const noexcept
-        {
-            return _lvl;
-        }
-
-        void setGold(unsigned int gold) noexcept
-        {
-            _gold = gold;
-        }
-
-        void setFaction(FactionT faction) noexcept
-        {
-            _faction = faction;
-        }
-
-        Faction getFaction() const noexcept
-        {
-            return _faction;
-        }
-
-        std::string getFactionStr() const noexcept
-        {
-            return _faction.toString();
-        }
-
-    private:
-        std::string _authToken;
-        std::string _nickname;
-        float _xp;
-        unsigned int _gold;
-        unsigned int _lvl;
-        Faction _faction;
     };
 }
 

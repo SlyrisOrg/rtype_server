@@ -7,6 +7,7 @@
 
 #include <protocol/Protocol.hpp>
 #include <meta/List.hpp>
+#include <api/Player.hpp>
 
 namespace matchmaking
 {
@@ -48,7 +49,25 @@ namespace matchmaking
         }
     };
 
-    using Packets = meta::TypeList<Authenticate, QueueJoin, QueueLeave>;
+    struct QueueStarted
+    {
+        static constexpr auto serializableFields() noexcept
+        {
+            return meta::makeMap();
+        }
+    };
+
+    struct MatchFound
+    {
+        static constexpr auto serializableFields() noexcept
+        {
+            return meta::makeMap();
+        }
+    };
+
+    using PlayerInfo = rtype::Player;
+
+    using Packets = meta::TypeList<Authenticate, QueueJoin, QueueLeave, QueueStarted, MatchFound, PlayerInfo>;
 }
 
 #endif //RTYPE_SERVER_MATCHMAKING_HPP

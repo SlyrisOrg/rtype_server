@@ -86,7 +86,7 @@ namespace rtype
 #endif
                         _log(lg::Info) << "Token Session -> " << token << std::endl;
 
-                        player.setAuthToken("JWT " + token);
+                        player.authToken = "JWT " + token;
                     } else {
                         _log(lg::Warning) << ec.message() << std::endl;
                     }
@@ -107,7 +107,7 @@ namespace rtype
             const auto url = utility::conversions::to_string_t(_urlAPI + "user");
             web::http::client::http_client client(url);
             _setRequest(web::http::methods::GET);
-            _request.headers().add(U("Authorization"), utility::conversions::to_string_t(player.getAuthToken()));
+            _request.headers().add(U("Authorization"), utility::conversions::to_string_t(player.authToken));
             _debugRequest(_request);
 
             return client.request(_request).then([&ec, &player](const web::http::http_response &response) {
@@ -125,15 +125,15 @@ namespace rtype
                         _log(lg::Info) << ec.message() << std::endl;
 #if defined(USING_WINDOWS)
                         const utility::string_t &wnickname = response.at(U("content")).as_object().at(U("nickname")).as_string();
-                        player.setNickname(utility::conversions::utf16_to_utf8(wnickname));
+                        player.nickName = utility::conversions::utf16_to_utf8(wnickname);
 #else
-                        player.setNickname(response.at(U("content")).as_object().at(U("nickname")).as_string());
+                        player.nickName = response.at(U("content")).as_object().at(U("nickname")).as_string();
 #endif
                         const auto &profile = response.at(U("content")).as_object().at(U("profile")).as_object();
-                        player.setXP(static_cast<float>(profile.at(U("experience")).as_double()));
-                        player.setLvl(static_cast<unsigned int>(profile.at(U("level")).as_integer()));
-                        player.setGold(static_cast<unsigned int>(profile.at(U("gold")).as_integer()));
-                        player.setFaction(static_cast<Player::FactionT>(profile.at(U("faction")).as_integer()));
+                        player.xp = static_cast<float>(profile.at(U("experience")).as_double());
+                        player.lvl = static_cast<unsigned int>(profile.at(U("level")).as_integer());
+                        player.gold = static_cast<unsigned int>(profile.at(U("gold")).as_integer());
+                        player.faction = static_cast<Player::FactionT>(profile.at(U("faction")).as_integer());
                     } else {
                         _log(lg::Warning) << ec.message() << std::endl;
                     }

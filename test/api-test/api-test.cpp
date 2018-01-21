@@ -15,7 +15,7 @@ TEST(APITest, Login)
     std::error_code ec;
     rtype::API::login(cred, player, ec).wait();
     ASSERT_EQ(ec, RTypeErrorCode::Success);
-    ASSERT_TRUE(!player.getAuthToken().empty());
+    ASSERT_TRUE(player.hasAuthToken());
     std::this_thread::sleep_for(1s);
 }
 
@@ -27,7 +27,7 @@ TEST(APITest, LoginEmptyUserName)
     std::error_code ec;
     rtype::API::login(cred, player, ec).wait();
     ASSERT_EQ(ec, RTypeErrorCode::CredentialsEmpty);
-    ASSERT_TRUE(player.getAuthToken().empty());
+    ASSERT_FALSE(player.hasAuthToken());
     std::this_thread::sleep_for(1s);
 }
 
@@ -39,7 +39,7 @@ TEST(APITest, LoginEmptyUserPassword)
     std::error_code ec;
     rtype::API::login(cred, player, ec).wait();
     ASSERT_EQ(ec, RTypeErrorCode::UserPasswordEmpty);
-    ASSERT_TRUE(player.getAuthToken().empty());
+    ASSERT_FALSE(player.hasAuthToken());
     std::this_thread::sleep_for(1s);
 }
 
@@ -51,7 +51,7 @@ TEST(APITest, LoginBadCredentials)
     std::error_code ec;
     rtype::API::login(cred, player, ec).wait();
     ASSERT_EQ(ec, RTypeErrorCode::UserSigningFail);
-    ASSERT_TRUE(player.getAuthToken().empty());
+    ASSERT_FALSE(player.hasAuthToken());
     std::this_thread::sleep_for(1s);
 }
 
@@ -64,10 +64,10 @@ TEST(APITest, GetData)
     auto res = rtype::API::login(cred, player, ec).wait();
     if (res == pplx::task_group_status::completed) {
         ASSERT_EQ(ec, RTypeErrorCode::Success);
-        ASSERT_TRUE(!player.getAuthToken().empty());
+        ASSERT_TRUE(player.hasAuthToken());
         rtype::API::getData(player, ec).wait();
         ASSERT_EQ(ec, RTypeErrorCode::Success);
-        ASSERT_EQ("Bheet", player.getFactionStr());
+        ASSERT_EQ("Bheet", rtype::Faction::toString(player.faction));
     }
     std::this_thread::sleep_for(1s);
 }

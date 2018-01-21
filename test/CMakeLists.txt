@@ -61,5 +61,5 @@ endmacro()
 ########################################################################################################################
 add_subdirectory(server-test)
 add_subdirectory(tcppacketreader)
-add_subdirectory(api-test)
+#add_subdirectory(api-test)
 add_subdirectory(matchmaker)
