@@ -5,7 +5,11 @@
 #ifndef RTYPE_SERVER_GAMESPAWNER_HPP
 #define RTYPE_SERVER_GAMESPAWNER_HPP
 
+#include <sstream>
+#include <boost/process.hpp>
 #include <master/MatchMaker.hpp>
+
+namespace bp = boost::process;
 
 namespace rtype::master
 {
@@ -18,7 +22,17 @@ namespace rtype::master
 
         void spawnGame(const matchmaking::GameInformation &game) noexcept
         {
-            _port++;
+            std::ostringstream oss;
+
+            oss << "./start_game";
+            for (const auto &cur : game.players) {
+                oss << " --player=" << cur->authToken;
+            }
+            oss << "--mode=" << game.gameMode;
+            oss << "--port=" << _port++;
+
+            bp::child gameProc(oss.str());
+            gameProc.detach();
         }
 
         unsigned short getNextPort() const noexcept

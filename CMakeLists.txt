@@ -51,4 +51,10 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_link_libraries(${PROJECT_NAME} Boost::system Boost::filesystem Boost::thread Boost::program_options Boost::boost
         cpprestsdk::cpprest OpenSSL::SSL core-utils core-log core-meta core-serialization)
 
+set(GAME_SERV_SOURCES
+        ${RTYPE_PROTO_HEADERS}
+        Project/game-main.cpp)
+
+add_executable(start_game ${GAME_SERV_SOURCES})
+
 add_subdirectory(test)
