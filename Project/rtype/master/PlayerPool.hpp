@@ -5,8 +5,8 @@
 #ifndef RTYPE_SERVER_PLAYERPOOL_HPP
 #define RTYPE_SERVER_PLAYERPOOL_HPP
 
-#include <tuple>
 #include <set>
+#include <unordered_map>
 #include <meta/Visitor.hpp>
 #include <log/Logger.hpp>
 #include <api/Player.hpp>
@@ -30,31 +30,32 @@ namespace rtype::master
         }
 
     private:
-        using PacketReader = TCPProtocolConnection<matchmaking::Packets>;
-        using Packet = typename PacketReader::Packet;
+        using Connection = TCPProtocolConnection<matchmaking::Packets>;
+        using Packet = typename Connection::Packet;
 
         struct PlayerData
         {
-            explicit PlayerData(tcp::socket &&socket) noexcept : reader(std::move(socket))
+            explicit PlayerData(tcp::socket &&socket) noexcept : conn(std::move(socket))
             {
             }
 
             rtype::Player info;
-            PacketReader reader;
+            Connection conn;
         };
 
         void readPacket(PlayerData *playerData) noexcept
         {
-            playerData->reader.asyncRead(boost::bind(&PlayerPool::handlePlayerPacket, this,
-                                                     asio::placeholders::error, playerData));
+            playerData->conn.asyncRead(boost::bind(&PlayerPool::handlePlayerPacket, this,
+                                                   asio::placeholders::error, playerData));
         }
 
         void disconnectPlayer(PlayerData *playerData) noexcept
         {
-            _log(logging::Debug) << "Closing connection to player '"
-                                 << playerData->info.nickName << "'" << std::endl;
+            _log(logging::Debug) << "Closing connection to player '" << playerData->info.nickName << "'" << std::endl;
             _matchMaker.remove(&playerData->info);
             _players.erase(playerData);
+            if (playerData->info.hasAuthToken())
+                _identifiedPlayers.erase(playerData->info.nickName);
             delete playerData;
         }
 
@@ -66,7 +67,7 @@ namespace rtype::master
                 return "matchmaking::QueueJoin";
             }, [](const matchmaking::QueueLeave &) {
                 return "matchmaking::QueueLeave";
-            }, [](auto &&) {
+            }, [](...) {
                 return "invalid packet";
             });
 
@@ -77,12 +78,28 @@ namespace rtype::master
         {
             _log(logging::Debug) << "Starting game for mode " << mode << std::endl;
             matchmaking::GameInformation game = _matchMaker.extractGame(mode);
-            auto logScope = _log(logging::Debug);
-            logScope << "The players are: ";
+
+            auto scopedLog = _log(logging::Debug);
+            scopedLog << "The players are: ";
             for (const auto &curPlayer : game.players) {
-                logScope << curPlayer->nickName << " ";
+                scopedLog << curPlayer->nickName << " ";
+                auto &conn = _identifiedPlayers[curPlayer->nickName]->conn;
+                boost::system::error_code ec;
+                conn.write(matchmaking::MatchFound(), ec);
+                //TODO: handle potential errors
+
+                for (const auto &curInfo : game.players) {
+                    if (curInfo != curPlayer) {
+                        auto info = _identifiedPlayers[curInfo->nickName]->info;
+                        info.authToken.clear();
+                        conn.write(info, ec);
+                        //TODO: handle potential errors
+                    }
+                }
             }
-            logScope << std::endl;
+            scopedLog << std::endl;
+            //TODO: disconnect people and start the game
+            // _identifiedPlayers.erase(playerData->info.nickName);
         }
 
         void handlePlayerPacket(const boost::system::error_code &ec, PlayerData *playerData)
@@ -92,8 +109,8 @@ namespace rtype::master
                 return;
             }
 
-            if (playerData->reader.available() > 0) {
-                auto packet = playerData->reader.pop();
+            if (playerData->conn.available() > 0) {
+                auto packet = playerData->conn.pop();
 
                 _log(logging::Debug) << "Got packet " << packetToString(packet) << " from "
                                      << playerData->info.nickName << std::endl;
@@ -105,19 +122,19 @@ namespace rtype::master
                     playerData->info.authToken = auth.authToken;
                     std::error_code errorCode;
                     rtype::API::getData(playerData->info, errorCode).wait();
-                    success =  !errorCode;
+                    if (!errorCode) {
+                        _identifiedPlayers.emplace(playerData->info.nickName, playerData);
+                        success = true;
+                    }
                 } else if (std::holds_alternative<matchmaking::QueueJoin>(packet)) {
                     const auto &queuej = std::get<matchmaking::QueueJoin>(packet);
                     if (!playerData->info.authToken.empty()) {
                         _matchMaker.addPlayer(&playerData->info, queuej.mode);
-                        boost::system::error_code err;
-                        playerData->reader.write(matchmaking::QueueStarted{}, err);
-                        if (!err) {
-                            if (_matchMaker.canStartMatch(queuej.mode)) {
-                                startMatch(queuej.mode);
-                            }
-                            success = true;
+//                        playerData->conn.write(matchmaking::QueueStarted{}, err);
+                        if (_matchMaker.canStartMatch(queuej.mode)) {
+                            startMatch(queuej.mode);
                         }
+                        success = true;
                     }
                 } else if (std::holds_alternative<matchmaking::QueueLeave>(packet)) {
                     _matchMaker.remove(&playerData->info);
@@ -134,6 +151,7 @@ namespace rtype::master
         logging::Logger _log{"playerpool", logging::Debug};
         matchmaking::MatchMaker _matchMaker;
         std::set<PlayerData *> _players;
+        std::unordered_map<std::string, PlayerData *> _identifiedPlayers;
     };
 }
 
