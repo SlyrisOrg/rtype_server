@@ -44,7 +44,10 @@ set(RTYPE_SERVER_SOURCES
         Project/main.cpp)
 
 add_executable(${PROJECT_NAME} ${RTYPE_SERVER_SOURCES})
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Project/rtype)
+target_include_directories(${PROJECT_NAME} PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/Project/rtype"
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/vendor/sol2")
 target_link_libraries(${PROJECT_NAME} Boost::system Boost::filesystem Boost::thread Boost::program_options Boost::boost
         cpprestsdk::cpprest OpenSSL::SSL core-utils core-log core-meta core-serialization)
 
