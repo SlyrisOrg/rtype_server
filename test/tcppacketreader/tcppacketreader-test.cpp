@@ -27,8 +27,8 @@ TEST(TCPPacketReader, Basic)
     asio::io_service io;
     tcp::acceptor acc(io, tcp::v4());
     bool worked = false;
-    TCPConn *reader = nullptr;
-    TCPConn *writer = nullptr;
+    boost::shared_ptr<TCPConn> reader;
+    boost::shared_ptr<TCPConn> writer;
 
     acc.set_option(tcp::acceptor::reuse_address(true));
     ASSERT_NO_THROW(acc.bind(tcp::endpoint(tcp::v4(), port)));
@@ -38,7 +38,7 @@ TEST(TCPPacketReader, Basic)
     acc.async_accept(servSock, [&reader, &worked, &servSock](const boost::system::error_code &ec) {
         if (ec)
             return;
-        reader = new TCPConn(std::move(servSock));
+        reader = TCPConn::makeShared(std::move(servSock));
         reader->asyncRead([&worked, &reader](const boost::system::error_code &ec) {
             if (ec)
                 return;
@@ -59,7 +59,7 @@ TEST(TCPPacketReader, Basic)
     client.async_connect(endpoint, [&writer, &client](const boost::system::error_code &ec) {
         if (ec)
             return;
-        writer = new TCPConn(std::move(client));
+        writer = TCPConn::makeShared(std::move(client));
         Lala l;
         l.lol = 2;
         l.tralala = 3.5f;
@@ -68,6 +68,4 @@ TEST(TCPPacketReader, Basic)
 
     io.run();
     ASSERT_TRUE(worked);
-    delete reader;
-    delete writer;
 }
