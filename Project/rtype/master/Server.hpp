@@ -81,7 +81,7 @@ namespace rtype::master
         bool run() noexcept
         {
             _setupSignals();
-            _log(lg::Info) << "Successfully signal handlers" << std::endl;
+            _log(lg::Info) << "Successfully installed signal handlers" << std::endl;
             if (!_setupAcceptor())
                 return false;
             _log(lg::Info) << "Successfully setup acceptor on port " << _port << std::endl;

@@ -9,7 +9,9 @@
 #include <cstring>
 #include <variant>
 #include <functional>
+#include <vector>
 #include <array>
+#include <SFML/Graphics.hpp>
 #include <utils/Endian.hpp>
 #include <utils/Span.hpp>
 #include <meta/List.hpp>
@@ -79,6 +81,12 @@ namespace proto
             std::memcpy(_bytes.data() + oldSize, str.data(), str.size());
         }
 
+        void __addValue(const sf::Vector2f &v) noexcept
+        {
+            __addValue(v.x);
+            __addValue(v.y);
+        }
+
     public:
         Buffer extract() noexcept
         {
@@ -100,6 +108,8 @@ namespace proto
             if constexpr (std::is_enum_v<T>) {
                 serialize(static_cast<int>(t), depth);
             } else if constexpr (serialization::is_basic_v<T>) {
+                __addValue(t);
+            } else if constexpr (std::is_same_v<sf::Vector2f, T>){
                 __addValue(t);
             } else {
                 auto visitor = [&](auto &&k, auto &&valMemberPtr) {
@@ -166,6 +176,17 @@ namespace proto
             return ret;
         }
 
+        static sf::Vector2f __unserializeSfVector(BufferSpan &sp)
+        {
+            if (unlikely(sp.size() < 2 * sizeof(float))) {
+                throw NotEnoughData();
+            }
+            sf::Vector2f v;
+            v.x = __unserialize<float>(sp);
+            v.y = __unserialize<float>(sp);
+            return v;
+        }
+
     public:
         Packet unserialize(BufferSpan data)
         {
@@ -195,6 +216,8 @@ namespace proto
                     //Handling this case probably won't be needed for this project
                 } else if constexpr (std::is_same_v<std::decay_t<MemberType>, std::string>) {
                     ret.*valMemberPtr = __unserializeString(data);
+                } else if constexpr (std::is_same_v<std::decay_t<MemberType>, sf::Vector2f>) {
+                    ret.*valMemberPtr = __unserializeSfVector(data);
                 } else {
                     ret.*valMemberPtr = __unserialize<decltype(ret.*valMemberPtr)>(data);
                 }
@@ -202,8 +225,7 @@ namespace proto
             return {std::move(ret)};
         }
 
-        using PacketUnserializerArray = std::array<std::function<Packet(
-            BufferSpan)>, meta::list::Length<Packets>::value>;
+        using PacketUnserializerArray = std::array<std::function<Packet(BufferSpan)>, meta::list::Length<Packets>::value>;
 
         template <typename ...Types>
         static inline constexpr PacketUnserializerArray makeArray(meta::TypeList<Types...>) noexcept

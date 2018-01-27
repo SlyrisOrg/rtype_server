@@ -10,9 +10,7 @@
 #include <SFML/Graphics.hpp>
 #include <utils/Enums.hpp>
 #include <log/Logger.hpp>
-#include <protocol/Game.hpp>
-#include <gameserver/IOThread.hpp>
-#include <variant>
+#include <gameserver/ServerIOThread.hpp>
 
 namespace rtype
 {
@@ -22,129 +20,42 @@ namespace rtype
          Trio,
          Quatuor);
 
-    ENUM(PeerID,
-         All,
-         One,
-         Two,
-         Three,
-         Four);
-
-    using GamePacket = meta::list::Convert<meta::list::PushFront<game::Packets, std::monostate>, std::variant>;
-    using PeerAndPacket = std::pair<PeerID, GamePacket>;
-
-    class ServerIOThread : public IOThread<GamePacket>
-    {
-    private:
-        using TCPProtoConn = TCPProtocolConnection<game::Packets>;
-
-        void _handlePacket(const boost::system::error_code &ec, boost::weak_ptr<TCPProtoConn> conn)
-        {
-            if (auto shared = conn.lock()) {
-                if (ec) {
-                    auto it = std::find(_clients.begin(), _clients.end(), shared);
-                    _clients.erase(it);
-                    return;
-                }
-                while (shared->available() > 0) {
-                    auto packet = shared->pop();
-                    _queue.push(std::move(packet));
-                }
-                _readFromClient(shared);
-            } else {
-                auto it = std::find(_clients.begin(), _clients.end(), shared);
-                _clients.erase(it);
-            }
-        }
-
-        void _readFromClient(boost::shared_ptr<TCPProtoConn> clientConn)
-        {
-            boost::weak_ptr<TCPProtoConn> weakPtr(clientConn);
-            clientConn->asyncRead(boost::bind(&ServerIOThread::_handlePacket, this,
-                                              asio::placeholders::error, weakPtr));
-        }
-
-        void _startAcceptor() noexcept
-        {
-            _acc.async_accept(_sock, boost::bind(&ServerIOThread::_onAccept, this, asio::placeholders::error));
-        }
-
-        void _onAccept(const boost::system::error_code &ec)
-        {
-            if (ec) {
-                _log(logging::Debug) << ec.message() << std::endl;
-                return;
-            }
-            auto shared = TCPProtoConn::makeShared(std::move(_sock));
-            boost::system::error_code ec2;
-            shared->write(game::Welcome(), ec2);
-            if (!ec2) {
-                _clients.push_back(std::move(shared));
-                _readFromClient(_clients.back());
-            }
-            _startAcceptor();
-        }
-
-    public:
-        void run(unsigned short port) noexcept
-        {
-            IOThread::run([this, port]() {
-                boost::system::error_code ec;
-
-                _acc.open(tcp::v4(), ec);
-                if (ec)
-                    return;
-                _acc.set_option(tcp::acceptor::reuse_address(true));
-                _acc.bind(tcp::endpoint{tcp::v4(), port}, ec);
-                if (ec)
-                    return;
-                _acc.listen(4, ec);
-                if (ec)
-                    return;
-                _startAcceptor();
-            });
-        }
-
-        template <typename Packet>
-        void broadcastPacket(const Packet &packet)
-        {
-            for (auto &curClient : _clients) {
-                boost::system::error_code ec;
-                curClient->write(packet, ec);
-                if (ec) {
-                    //?
-                }
-            }
-        }
-
-    private:
-        logging::Logger _log{"IO", logging::Debug};
-        std::vector<boost::shared_ptr<TCPProtoConn>> _clients;
-        tcp::acceptor _acc{_io};
-        tcp::socket _sock{_io};
-    };
+//    ENUM(PeerID,
+//         All,
+//         One,
+//         Two,
+//         Three,
+//         Four);
 
     class GameServer
     {
     public:
-        GameServer(unsigned short port, Mode mode, std::vector<std::string> authToks) noexcept :
-            _port(port), _mode(mode), _authToks(std::move(authToks))
+        GameServer(unsigned short port, Mode mode, const std::vector<std::string> &authToks) noexcept :
+            _port(port), _mode(mode), _authToks(authToks.begin(), authToks.end())
         {
+        }
+
+        void _handleReceivedPackets() noexcept
+        {
+            PeerAndPacket peerAndPacket;
+
+            while (_ioThread.queue().pop(peerAndPacket)) {
+                auto visitor = meta::makeVisitor([this, &peerAndPacket](auto &&v) {
+                    using Decayed = std::decay_t<decltype(v)>;
+                    if constexpr (!std::is_same_v<std::monostate, Decayed>) {
+                        _log(logging::Debug) << "Got a packet of type " << Decayed::className()
+                                             << " from player " << peerAndPacket.first << std::endl;
+                        _ioThread.sendPacket(peerAndPacket.first, game::MatchStarted());
+                    }
+                });
+
+                std::visit(visitor, peerAndPacket.second);
+            }
         }
 
         void _update(const sf::Time &elapsed) noexcept
         {
-            GamePacket packet;
-
-            while (_ioThread.queue().pop(packet)) {
-                auto visitor = meta::makeVisitor([this](auto &&v) {
-                    using Decayed = std::decay_t<decltype(v)>;
-                    if constexpr (!std::is_same_v<std::monostate, Decayed>) {
-                        _log(logging::Debug) << "Got a packet of type " << Decayed::className() << std::endl;
-                    }
-                });
-
-                std::visit(visitor, packet);
-            }
+            _handleReceivedPackets();
         }
 
         void start() noexcept
@@ -172,7 +83,7 @@ namespace rtype
 
         unsigned short _port;
         Mode _mode;
-        std::vector<std::string> _authToks;
+        std::set<std::string> _authToks;
         logging::Logger _log{"game", logging::Debug};
     };
 }
