@@ -102,14 +102,15 @@ namespace proto
             _bytes.insert(_bytes.begin(), toAdd.begin(), toAdd.end());
         }
 
-        template <typename T, typename std::enable_if_t<serialization::is_serializable_v<T> || std::is_enum_v<T>, bool> = true>
+        template <typename T, typename std::enable_if_t<
+            serialization::is_serializable_v<T> || std::is_enum_v<T> || true, bool> = true>
         void serialize(const T &t, [[maybe_unused]] size_t depth = 0) noexcept
         {
             if constexpr (std::is_enum_v<T>) {
                 serialize(static_cast<int>(t), depth);
             } else if constexpr (serialization::is_basic_v<T>) {
                 __addValue(t);
-            } else if constexpr (std::is_same_v<sf::Vector2f, T>){
+            } else if constexpr (std::is_same_v<sf::Vector2f, T>) {
                 __addValue(t);
             } else {
                 auto visitor = [&](auto &&k, auto &&valMemberPtr) {
@@ -225,7 +226,8 @@ namespace proto
             return {std::move(ret)};
         }
 
-        using PacketUnserializerArray = std::array<std::function<Packet(BufferSpan)>, meta::list::Length<Packets>::value>;
+        using PacketUnserializerArray = std::array<std::function<Packet(
+            BufferSpan)>, meta::list::Length<Packets>::value>;
 
         template <typename ...Types>
         static inline constexpr PacketUnserializerArray makeArray(meta::TypeList<Types...>) noexcept

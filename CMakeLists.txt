@@ -54,6 +54,10 @@ add_subdirectory(Project/rtype/gameserver)
 
 set(GAME_SERV_SOURCES
         ${RTYPE_PROTO_HEADERS}
+        ${RTYPE_API_SOURCES}
+        ${RTYPE_API_HEADERS}
+        ${RTYPE_ERROR_SOURCES}
+        ${RTYPE_ERROR_HEADERS}
         ${GAME_SERV_HEADERS}
         Project/game-main.cpp)
 
