@@ -41,6 +41,8 @@ namespace rtype
                                  reflect_member(&Player::lvl),
                                  reflect_member(&Player::faction));
         }
+
+        reflect_class(Player);
     };
 }
 

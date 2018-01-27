@@ -19,6 +19,8 @@ namespace matchmaking
         {
             return meta::makeMap(reflect_member(&Authenticate::authToken));
         }
+
+        reflect_class(Authenticate);
     };
 
     enum Mode
@@ -39,6 +41,8 @@ namespace matchmaking
         {
             return meta::makeMap(reflect_member(&QueueJoin::mode));
         }
+
+        reflect_class(QueueJoin);
     };
 
     struct QueueLeave
@@ -47,6 +51,8 @@ namespace matchmaking
         {
             return meta::makeMap();
         }
+
+        reflect_class(QueueLeave);
     };
 
     struct QueueStarted
@@ -55,6 +61,8 @@ namespace matchmaking
         {
             return meta::makeMap();
         }
+
+        reflect_class(QueueStarted);
     };
 
     struct MatchFound
@@ -63,6 +71,8 @@ namespace matchmaking
         {
             return meta::makeMap();
         }
+
+        reflect_class(MatchFound);
     };
 
     struct GameHostInfo
@@ -73,6 +83,8 @@ namespace matchmaking
         {
             return meta::makeMap(reflect_member(&GameHostInfo::port));
         }
+
+        reflect_class(GameHostInfo);
     };
 
     using PlayerInfo = rtype::Player;

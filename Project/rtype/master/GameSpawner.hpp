@@ -7,9 +7,11 @@
 
 #include <sstream>
 #include <boost/process.hpp>
+#include <boost/filesystem.hpp>
 #include <master/MatchMaker.hpp>
 
 namespace bp = boost::process;
+namespace fs = boost::filesystem;
 
 namespace rtype::master
 {
@@ -31,8 +33,12 @@ namespace rtype::master
             oss << " --mode " << game.gameMode;
             oss << " --port " << _port++;
 
-            bp::child gameProc(oss.str());
-            gameProc.detach();
+            try {
+                bp::child gameProc(oss.str(), bp::std_err > fs::temp_directory_path() / "game_log");
+                gameProc.detach();
+            } catch (...) {
+                //TODO: handle error
+            }
         }
 
         unsigned short getNextPort() const noexcept

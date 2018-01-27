@@ -63,16 +63,17 @@ namespace rtype
         }
 
     protected:
-        void run(const std::function<void()> &func)
+        template <typename Functor>
+        void run(Functor &&func)
         {
-            _thread = std::thread([this, &func]() {
+            _thread = std::thread([this, fc = std::forward<Functor>(func)]() {
                 asio::signal_set sigSet{_io, SIGINT, SIGTERM};
 
                 sigSet.async_wait([this]([[maybe_unused]] const boost::system::error_code &ec,
                                          [[maybe_unused]] int sig) {
                     _io.stop();
                 });
-                func();
+                fc();
                 _io.run();
             });
         }

@@ -67,14 +67,13 @@ namespace rtype::master
 
         static auto _packetToString(const Packet &p) noexcept
         {
-            static const auto v = meta::makeVisitor([](const matchmaking::Authenticate &) {
-                return "matchmaking::Authenticate";
-            }, [](const matchmaking::QueueJoin &) {
-                return "matchmaking::QueueJoin";
-            }, [](const matchmaking::QueueLeave &) {
-                return "matchmaking::QueueLeave";
-            }, [](...) {
-                return "invalid packet";
+            static const auto v = meta::makeVisitor([](auto &&v) -> std::string {
+                using Decayed = std::decay_t<decltype(v)>;
+
+                if constexpr (std::is_same_v<Decayed, std::monostate>)
+                    return "Invalid";
+                else
+                    return Decayed::className();
             });
 
             return std::visit(v, p);

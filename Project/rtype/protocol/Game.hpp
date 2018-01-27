@@ -10,12 +10,24 @@
 
 namespace game
 {
+    struct Welcome
+    {
+        static constexpr auto serializableFields() noexcept
+        {
+            return meta::makeMap();
+        }
+
+        reflect_class(Welcome);
+    };
+
     struct MatchStarted
     {
         static constexpr auto serializableFields() noexcept
         {
             return meta::makeMap();
         }
+
+        reflect_class(MatchStarted);
     };
 
     struct Authenticate
@@ -26,9 +38,11 @@ namespace game
         {
             return meta::makeMap(reflect_member(&Authenticate::authToken));
         }
+
+        reflect_class(Authenticate);
     };
 
-    using Packets = meta::TypeList<MatchStarted, Authenticate>;
+    using Packets = meta::TypeList<Welcome, MatchStarted, Authenticate>;
 }
 
 #endif //RTYPE_SERVER_GAME_HPP

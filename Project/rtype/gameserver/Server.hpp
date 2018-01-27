@@ -71,10 +71,16 @@ namespace rtype
         void _onAccept(const boost::system::error_code &ec)
         {
             if (ec) {
+                _log(logging::Debug) << ec.message() << std::endl;
                 return;
             }
-            _clients.push_back(TCPProtoConn::makeShared(std::move(_sock)));
-            _readFromClient(_clients.back());
+            auto shared = TCPProtoConn::makeShared(std::move(_sock));
+            boost::system::error_code ec2;
+            shared->write(game::Welcome(), ec2);
+            if (!ec2) {
+                _clients.push_back(std::move(shared));
+                _readFromClient(_clients.back());
+            }
             _startAcceptor();
         }
 
@@ -111,6 +117,7 @@ namespace rtype
         }
 
     private:
+        logging::Logger _log{"IO", logging::Debug};
         std::vector<boost::shared_ptr<TCPProtoConn>> _clients;
         tcp::acceptor _acc{_io};
         tcp::socket _sock{_io};
@@ -130,9 +137,10 @@ namespace rtype
 
             while (_ioThread.queue().pop(packet)) {
                 auto visitor = meta::makeVisitor([this](auto &&v) {
-                    _log(logging::Debug) << "Got a packet of type " << typeid(v).name() << std::endl;
-                    game::MatchStarted ms;
-                    _ioThread.broadcastPacket(ms);
+                    using Decayed = std::decay_t<decltype(v)>;
+                    if constexpr (!std::is_same_v<std::monostate, Decayed>) {
+                        _log(logging::Debug) << "Got a packet of type " << Decayed::className() << std::endl;
+                    }
                 });
 
                 std::visit(visitor, packet);
