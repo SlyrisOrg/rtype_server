@@ -11,11 +11,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/vendor/core/cmake-utils/Module)
 set(CMAKE_CONFIG_PATH ${CMAKE_SOURCE_DIR}/vendor/core/cmake-utils)
 
 if (WIN32)
-    add_definitions(-D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
+    add_definitions(-D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS -DWIN32_LEAN_AND_MEAN)
     if (CMAKE_BUILD_TYPE MATCHES Debug)
         set(BOOST_LIBRARYDIR $ENV{BOOST_ROOT}/debug/lib)
-    endif()
-endif(WIN32)
+    endif ()
+endif (WIN32)
 
 find_package(Boost COMPONENTS random regex system filesystem thread program_options REQUIRED)
 
@@ -26,6 +26,7 @@ STANDARD_COMPILATION_SETTINGS()
 RTYPE_SERVER_CONFIG()
 CPPREST_CONFIG()
 find_package(Lua 5.3)
+SFML_CONFIG()
 
 add_subdirectory(Project/rtype/netproto)
 add_subdirectory(Project/rtype/protocol)
@@ -45,16 +46,24 @@ set(RTYPE_SERVER_SOURCES
 
 add_executable(${PROJECT_NAME} ${RTYPE_SERVER_SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/Project/rtype"
-        PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/vendor/sol2")
+        "${CMAKE_CURRENT_SOURCE_DIR}/Project/rtype")
 target_link_libraries(${PROJECT_NAME} Boost::system Boost::filesystem Boost::thread Boost::program_options Boost::boost
         cpprestsdk::cpprest OpenSSL::SSL core-utils core-log core-meta core-serialization)
 
+add_subdirectory(Project/rtype/gameserver)
+
 set(GAME_SERV_SOURCES
         ${RTYPE_PROTO_HEADERS}
+        ${GAME_SERV_HEADERS}
         Project/game-main.cpp)
 
 add_executable(start_game ${GAME_SERV_SOURCES})
+target_compile_definitions(start_game PRIVATE LOGGER_THREAD_SAFE)
+target_include_directories(start_game PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/Project/rtype"
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/vendor/sol2")
+target_link_libraries(start_game Boost::system Boost::filesystem Boost::thread Boost::program_options Boost::boost
+        cpprestsdk::cpprest OpenSSL::SSL ${SFML_LIBRARIES} core-utils core-log core-meta core-serialization core-thr)
 
 add_subdirectory(test)

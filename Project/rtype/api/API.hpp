@@ -156,4 +156,6 @@ namespace rtype
     };
 }
 
+#undef U
+
 #endif //RTYPE_SERVER_API_HPP

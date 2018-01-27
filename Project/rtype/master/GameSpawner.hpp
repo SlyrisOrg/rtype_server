@@ -26,10 +26,10 @@ namespace rtype::master
 
             oss << "./start_game";
             for (const auto &cur : game.players) {
-                oss << " --player=" << cur->authToken;
+                oss << " --player \"" << cur->authToken << "\"";
             }
-            oss << "--mode=" << game.gameMode;
-            oss << "--port=" << _port++;
+            oss << " --mode " << game.gameMode;
+            oss << " --port " << _port++;
 
             bp::child gameProc(oss.str());
             gameProc.detach();
