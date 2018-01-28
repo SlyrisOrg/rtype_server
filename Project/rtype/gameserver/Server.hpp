@@ -36,9 +36,10 @@ namespace rtype
         {
         }
 
-        void _handleAuth(const game::Authenticate &auth, const PeerAndPacket &pap) noexcept
+    private:
+        void _handleAuth(const game::Authenticate &auth, size_t senderID) noexcept
         {
-            if (_authToks.count(auth.authToken)) {
+            if (_authToks.count(auth.authToken) > 0) {
                 rtype::Player player;
                 player.authToken = auth.authToken;
 
@@ -63,18 +64,18 @@ namespace rtype
 
             while (_ioThread.queue().pop(peerAndPacket)) {
                 auto visitor = meta::makeVisitor([this, &peerAndPacket](game::Authenticate &auth) {
-                    _handleAuth(auth, peerAndPacket);
+                    _handleAuth(auth, peerAndPacket.id);
                 }, [this, &peerAndPacket](auto &&v) {
                     using Decayed = std::decay_t<decltype(v)>;
                     if constexpr (!std::is_same_v<std::monostate, Decayed>) {
                         _log(logging::Debug) << "Got unexpected apacket "
                                              << Decayed::className()
-                                             << " from player " << peerAndPacket.first
+                                             << " from player " << peerAndPacket.id
                                              << std::endl;
                     }
                 });
 
-                std::visit(visitor, peerAndPacket.second);
+                std::visit(visitor, peerAndPacket.packet);
             }
         }
 
@@ -83,6 +84,7 @@ namespace rtype
             _handleReceivedPackets();
         }
 
+    public:
         void start() noexcept
         {
             _log(logging::Info) << "Starting game with mode " << _mode.toString() << std::endl;
@@ -96,15 +98,13 @@ namespace rtype
                 _update(timeSinceLastUpdate);
                 timeSinceLastUpdate = clock.restart();
 
-                if (auto rest = TimePerFrame.asMilliseconds() - clock.getElapsedTime().asMilliseconds();
-                rest > 0) {
+                if (auto rest = TimePerFrame.asMilliseconds() - clock.getElapsedTime().asMilliseconds(); rest > 0) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(rest));
                 }
             }
         }
 
     private:
-        //TODO: link packet and the person to which we wanna send it
         ServerIOThread _ioThread;
 
         unsigned short _port;

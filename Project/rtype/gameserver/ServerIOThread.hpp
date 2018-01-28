@@ -14,7 +14,12 @@
 namespace rtype
 {
     using GamePacket = meta::list::Convert<meta::list::PushFront<game::Packets, std::monostate>, std::variant>;
-    using PeerAndPacket = std::pair<size_t, GamePacket>;
+
+    struct PeerAndPacket
+    {
+        size_t id;
+        GamePacket packet;
+    };
 
     class ServerIOThread : public IOThread<PeerAndPacket>
     {
@@ -34,8 +39,8 @@ namespace rtype
 
                 while (shared->available() > 0) {
                     PeerAndPacket peerAndPacket;
-                    peerAndPacket.first = id;
-                    peerAndPacket.second = shared->pop();
+                    peerAndPacket.id = id;
+                    peerAndPacket.packet = shared->pop();
                     _queue.push(std::move(peerAndPacket));
                 }
                 _readFromClient(shared);
