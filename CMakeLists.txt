@@ -30,6 +30,8 @@ SFML_CONFIG()
 
 add_subdirectory(Project/rtype/netproto)
 add_subdirectory(Project/rtype/protocol)
+add_subdirectory(Project/rtype/components)
+add_subdirectory(Project/rtype/entity)
 add_subdirectory(Project/rtype/master)
 add_subdirectory(Project/rtype/api)
 add_subdirectory(Project/rtype/error)
@@ -58,6 +60,9 @@ set(GAME_SERV_SOURCES
         ${RTYPE_API_HEADERS}
         ${RTYPE_ERROR_SOURCES}
         ${RTYPE_ERROR_HEADERS}
+        ${RTYPE_COMPONENTS_HEADERS}
+        ${RTYPE_ENTITY_HEADERS}
+        ${RTYPE_ENTITY_SOURCES}
         ${GAME_SERV_HEADERS}
         Project/game-main.cpp)
 
@@ -65,8 +70,14 @@ add_executable(start_game ${GAME_SERV_SOURCES})
 target_compile_definitions(start_game PRIVATE LOGGER_THREAD_SAFE)
 target_include_directories(start_game PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/Project/rtype"
+        PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/Project"
         PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/vendor/sol2")
+        "${CMAKE_CURRENT_SOURCE_DIR}/vendor/sol2"
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/vendor/rapidjson/include"
+        PRIVATE
+        ${LUA_INCLUDE_DIR})
 target_link_libraries(start_game Boost::system Boost::filesystem Boost::thread Boost::program_options Boost::boost
         cpprestsdk::cpprest OpenSSL::SSL ${SFML_LIBRARIES} core-utils core-log core-meta core-serialization core-thr)
 

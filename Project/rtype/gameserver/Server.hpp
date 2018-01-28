@@ -13,6 +13,9 @@
 #include <log/Logger.hpp>
 #include <api/API.hpp>
 #include <gameserver/ServerIOThread.hpp>
+#include <gameserver/ConfigManager.hpp>
+#include <entity/ECS.hpp>
+#include <entity/GameFactory.hpp>
 
 namespace rtype
 {
@@ -45,6 +48,7 @@ namespace rtype
                     cp.nickName = player.nickName;
                     cp.factionName = Faction::toString(player.faction);
                     cp.pos = sf::Vector2f(200, 200 * _authToks.size());
+                    GameFactory::createPlayerSpaceShip(_cfg.factionToBounds(cp.factionName), cp.pos);
                     _ioThread.broadcastPacket(cp);
                     _idToNickname.emplace(senderID, cp.nickName);
                     _authToks.erase(auth.authToken);
@@ -83,6 +87,12 @@ namespace rtype
         {
             _log(logging::Info) << "Starting game with mode " << _mode.toString() << std::endl;
             _log(logging::Info) << "Using port " << _port << std::endl;
+            if (!_cfg.loadConfig()) {
+                _log(logging::Error) << "Unable to load configuration files" << std::endl;
+                return;
+            }
+            _log(logging::Info) << "Successfully loaded configuration files" << std::endl;
+            GameFactory::setEntityManager(&_ettMgr);
             _ioThread.run(_port);
 
             sf::Clock clock;
@@ -101,6 +111,8 @@ namespace rtype
     private:
         ServerIOThread _ioThread;
         std::unordered_map<size_t, std::string> _idToNickname;
+        ConfigManager _cfg;
+        EntityManager _ettMgr;
 
         unsigned short _port;
         Mode _mode;
