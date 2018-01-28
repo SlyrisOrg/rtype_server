@@ -16,6 +16,7 @@
 #include <gameserver/ConfigManager.hpp>
 #include <entity/ECS.hpp>
 #include <entity/GameFactory.hpp>
+#include <lua/LuaManager.hpp>
 
 namespace rtype
 {
@@ -34,6 +35,11 @@ namespace rtype
         }
 
     private:
+        bool canActOnEntity(size_t senderID, const std::string &ettName)
+        {
+            return _clientIDToNickname[senderID] == ettName;
+        }
+
         void _handleAuth(const game::Authenticate &auth, size_t senderID) noexcept
         {
             if (_authToks.count(auth.authToken) > 0) {
@@ -44,17 +50,25 @@ namespace rtype
                 rtype::API::getData(player, ec).wait();
 
                 if (!ec) {
+                    _clientIDToNickname.emplace(senderID, player.nickName);
+
                     game::CreatePlayer cp;
                     cp.nickName = player.nickName;
                     cp.factionName = Faction::toString(player.faction);
                     cp.pos = sf::Vector2f(200, 200 * _authToks.size());
-                    GameFactory::createPlayerSpaceShip(_cfg.factionToBounds(cp.factionName), cp.pos);
+                    auto id = GameFactory::createPlayerSpaceShip(_cfg.factionToBounds(cp.factionName), cp.pos);
+                    _nameToEntityID.emplace(cp.nickName, id);
                     _ioThread.broadcastPacket(cp);
-                    _idToNickname.emplace(senderID, cp.nickName);
                     _authToks.erase(auth.authToken);
                 }
             } else {
                 //Disconnect
+            }
+        }
+
+        void _handleMove(const game::Move &move, size_t senderID) noexcept
+        {
+            if (canActOnEntity(senderID, move.ettName)) {
             }
         }
 
@@ -65,6 +79,8 @@ namespace rtype
             while (_ioThread.queue().pop(peerAndPacket)) {
                 auto visitor = meta::makeVisitor([this, &peerAndPacket](game::Authenticate &auth) {
                     _handleAuth(auth, peerAndPacket.id);
+                }, [this, &peerAndPacket](game::Move &move) {
+                    _handleMove(move, peerAndPacket.id);
                 }, [this, &peerAndPacket](auto &&v) {
                     using Decayed = std::decay_t<decltype(v)>;
                     if constexpr (!std::is_same_v<std::monostate, Decayed>) {
@@ -82,16 +98,33 @@ namespace rtype
             _handleReceivedPackets();
         }
 
+        bool _loadConfig() noexcept
+        {
+            if (!_cfg.loadConfig()) {
+                _log(logging::Error) << "Unable to load configuration files" << std::endl;
+                return false;
+            }
+            _log(logging::Info) << "Successfully loaded configuration files" << std::endl;
+            return true;
+        }
+
+        bool _loadScripts() noexcept
+        {
+            if (!_luaMgr.loadScript("player.lua")) {
+                _log(logging::Error) << "Unable to load scripts" << std::endl;
+                return false;
+            }
+            _log(logging::Info) << "Successfully loaded scripts" << std::endl;
+            return true;
+        }
+
     public:
         void start() noexcept
         {
             _log(logging::Info) << "Starting game with mode " << _mode.toString() << std::endl;
             _log(logging::Info) << "Using port " << _port << std::endl;
-            if (!_cfg.loadConfig()) {
-                _log(logging::Error) << "Unable to load configuration files" << std::endl;
+            if (!_loadConfig() || !_loadScripts())
                 return;
-            }
-            _log(logging::Info) << "Successfully loaded configuration files" << std::endl;
             GameFactory::setEntityManager(&_ettMgr);
             _ioThread.run(_port);
 
@@ -110,9 +143,11 @@ namespace rtype
 
     private:
         ServerIOThread _ioThread;
-        std::unordered_map<size_t, std::string> _idToNickname;
+        std::unordered_map<size_t, std::string> _clientIDToNickname;
+        std::unordered_map<std::string, Entity::ID> _nameToEntityID;
         ConfigManager _cfg;
         EntityManager _ettMgr;
+        lua::LuaManager _luaMgr{_ettMgr, fs::path("assets/scripts/")};
 
         unsigned short _port;
         Mode _mode;

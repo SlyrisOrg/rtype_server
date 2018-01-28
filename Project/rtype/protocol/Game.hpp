@@ -64,19 +64,19 @@ namespace game
         reflect_class(CreatePlayer);
     };
 
-//    struct Move
-//    {
-//        float x;
-//        float y;
-//        std::string ettName;
-//
-//        static constexpr auto serializableFields() noexcept
-//        {
-//            return meta::makeMap(reflect_member(&Move::x), reflect_member(&Move::y), reflect_member(&Move::ettName));
-//        }
-//
-//        reflect_class(Move);
-//    };
+    struct Move
+    {
+        sf::Vector2f pos;
+        std::string ettName;
+
+        static constexpr auto serializableFields() noexcept
+        {
+            return meta::makeMap(reflect_member(&Move::pos),
+                                 reflect_member(&Move::ettName));
+        }
+
+        reflect_class(Move);
+    };
 
 //    struct Shoot
 //    {
@@ -115,7 +115,7 @@ namespace game
 //        reflect_class(Kill);
 //    };
 
-    using Packets = meta::TypeList<Welcome, MatchStarted, Authenticate, CreatePlayer>;
+    using Packets = meta::TypeList<Welcome, MatchStarted, Authenticate, CreatePlayer, Move>;
 }
 
 #endif //RTYPE_SERVER_GAME_HPP

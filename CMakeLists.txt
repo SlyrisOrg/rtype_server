@@ -35,6 +35,7 @@ add_subdirectory(Project/rtype/entity)
 add_subdirectory(Project/rtype/master)
 add_subdirectory(Project/rtype/api)
 add_subdirectory(Project/rtype/error)
+add_subdirectory(Project/rtype/lua)
 
 set(RTYPE_SERVER_SOURCES
         ${RTYPE_PROTO_HEADERS}
@@ -63,6 +64,7 @@ set(GAME_SERV_SOURCES
         ${RTYPE_COMPONENTS_HEADERS}
         ${RTYPE_ENTITY_HEADERS}
         ${RTYPE_ENTITY_SOURCES}
+        ${RTYPE_LUA_HEADERS}
         ${GAME_SERV_HEADERS}
         Project/game-main.cpp)
 
@@ -79,6 +81,7 @@ target_include_directories(start_game PUBLIC
         PRIVATE
         ${LUA_INCLUDE_DIR})
 target_link_libraries(start_game Boost::system Boost::filesystem Boost::thread Boost::program_options Boost::boost
-        cpprestsdk::cpprest OpenSSL::SSL ${SFML_LIBRARIES} core-utils core-log core-meta core-serialization core-thr)
+        cpprestsdk::cpprest OpenSSL::SSL ${SFML_LIBRARIES} ${LUA_LIBRARIES}
+        core-utils core-log core-meta core-serialization core-thr)
 
 add_subdirectory(test)
