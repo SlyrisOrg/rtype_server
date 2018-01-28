@@ -40,6 +40,15 @@ namespace rtype
             return _clientIDToNickname[senderID] == ettName;
         }
 
+        void _broadcastPlayersInfo() noexcept
+        {
+            _log(logging::Debug) << "Broadcasting players information" << std::endl;
+            for (const auto &cp : _players) {
+                _ioThread.broadcastPacket(cp);
+            }
+            _players.clear();
+        }
+
         void _handleAuth(const game::Authenticate &auth, size_t senderID) noexcept
         {
             if (_authToks.count(auth.authToken) > 0) {
@@ -50,6 +59,7 @@ namespace rtype
                 rtype::API::getData(player, ec).wait();
 
                 if (!ec) {
+                    _log(logging::Debug) << "Got authentication from " << player.nickName << std::endl;
                     _clientIDToNickname.emplace(senderID, player.nickName);
 
                     game::CreatePlayer cp;
@@ -58,8 +68,10 @@ namespace rtype
                     cp.pos = sf::Vector2f(200, 200 * _authToks.size());
                     auto id = GameFactory::createPlayerSpaceShip(_cfg.factionToBounds(cp.factionName), cp.pos);
                     _nameToEntityID.emplace(cp.nickName, id);
-                    _ioThread.broadcastPacket(cp);
+                    _players.push_back(std::move(cp));
                     _authToks.erase(auth.authToken);
+                    if (_players.size() == static_cast<size_t>(_mode) + 1)
+                        _broadcastPlayersInfo();
                 }
             } else {
                 //Disconnect
@@ -69,6 +81,34 @@ namespace rtype
         void _handleMove(const game::Move &move, size_t senderID) noexcept
         {
             if (canActOnEntity(senderID, move.ettName)) {
+                auto id = _nameToEntityID[move.ettName];
+                auto &box = _ettMgr[id].getComponent<rtype::components::BoundingBox>();
+
+                int xFact = 0;
+                int yFact = 0;
+                switch (move.dir) {
+                    case game::Move::Up:
+                        yFact = -1;
+                        break;
+                    case game::Move::Down:
+                        yFact = 1;
+                        break;
+                    case game::Move::Left:
+                        xFact = -1;
+                        break;
+                    case game::Move::Right:
+                        xFact = 1;
+                        break;
+                }
+                auto pos = box.getPosition();
+                pos.x += xFact * move.time * 450;
+                pos.y += yFact * move.time * 450;
+                box.setPosition(pos);
+
+                game::SetPosition p;
+                p.pos = pos;
+                p.ettName = move.ettName;
+                _ioThread.broadcastPacket(p);
             }
         }
 
@@ -132,10 +172,11 @@ namespace rtype
             sf::Time timeSinceLastUpdate;
             const sf::Time TimePerFrame = sf::seconds(1.f / 60.f);
             while (!_ioThread.stopped()) {
+                clock.restart();
                 _update(timeSinceLastUpdate);
-                timeSinceLastUpdate = clock.restart();
+                timeSinceLastUpdate = clock.getElapsedTime();
 
-                if (auto rest = TimePerFrame.asMilliseconds() - clock.getElapsedTime().asMilliseconds(); rest > 0) {
+                if (auto rest = TimePerFrame.asMilliseconds() - timeSinceLastUpdate.asMilliseconds(); rest > 0) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(rest));
                 }
             }
@@ -148,6 +189,7 @@ namespace rtype
         ConfigManager _cfg;
         EntityManager _ettMgr;
         lua::LuaManager _luaMgr{_ettMgr, fs::path("assets/scripts/")};
+        std::vector<game::CreatePlayer> _players;
 
         unsigned short _port;
         Mode _mode;

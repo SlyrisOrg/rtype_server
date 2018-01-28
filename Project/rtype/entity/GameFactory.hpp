@@ -37,7 +37,7 @@ namespace rtype
             auto &ettMgr = *_ettMgr;
             ettMgr[spaceID].addComponent<rtc::Player>();
             ettMgr[spaceID].addComponent<rtc::GameFieldLayer>();
-            ettMgr[spaceID].addComponent<rtc::Lua>("player.lua", "player");
+            ettMgr[spaceID].addComponent<rtc::Lua>("player.lua", "player", "playerTable");
             return createSpaceShip(spaceID, std::forward<Args>(args)...);
         }
 

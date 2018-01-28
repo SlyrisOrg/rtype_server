@@ -19,8 +19,10 @@ namespace rtype::components
 {
     struct Lua
     {
-        explicit Lua(std::string _scriptName, std::string _selfName) noexcept : scriptName(std::move(_scriptName)),
-                                                                                selfName(std::move(_selfName))
+        explicit Lua(std::string _scriptName, std::string _selfName, std::string _tableName) noexcept :
+            scriptName(std::move(_scriptName)),
+            selfName(std::move(_selfName)),
+            tableName(std::move(_tableName))
         {
         }
 
@@ -30,8 +32,10 @@ namespace rtype::components
         }
 
         reflect_class(Lua);
+
         std::string scriptName;
         std::string selfName;
+        std::string tableName;
     };
 
     struct Sprite

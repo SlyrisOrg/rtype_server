@@ -103,21 +103,16 @@ namespace rtype
         {
             for (auto &curClient : _clients) {
                 boost::system::error_code ec;
-                curClient->write(packet, ec);
-                if (ec) {
-                    //?
-                }
+                curClient->asyncWrite(packet, [](const boost::system::error_code &, size_t) {
+                });
             }
         }
 
         template <typename Packet>
         void sendPacket(size_t id, const Packet &packet)
         {
-            boost::system::error_code ec;
-            _clients[id]->write(packet, ec);
-            if (ec) {
-                //?
-            }
+            _clients[id]->asyncWrite(packet, [](const boost::system::error_code &, size_t) {
+            });
         }
 
     private:

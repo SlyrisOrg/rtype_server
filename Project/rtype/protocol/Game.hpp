@@ -66,16 +66,40 @@ namespace game
 
     struct Move
     {
+        enum Direction
+        {
+            Up,
+            Down,
+            Left,
+            Right,
+        };
+
+        Direction dir;
+        std::string ettName;
+        float time;
+
+        static constexpr auto serializableFields() noexcept
+        {
+            return meta::makeMap(reflect_member(&Move::dir),
+                                 reflect_member(&Move::ettName),
+                                 reflect_member(&Move::time));
+        }
+
+        reflect_class(Move);
+    };
+
+    struct SetPosition
+    {
         sf::Vector2f pos;
         std::string ettName;
 
         static constexpr auto serializableFields() noexcept
         {
-            return meta::makeMap(reflect_member(&Move::pos),
-                                 reflect_member(&Move::ettName));
+            return meta::makeMap(reflect_member(&SetPosition::pos),
+                                 reflect_member(&SetPosition::ettName));
         }
 
-        reflect_class(Move);
+        reflect_class(SetPosition);
     };
 
 //    struct Shoot
@@ -115,7 +139,7 @@ namespace game
 //        reflect_class(Kill);
 //    };
 
-    using Packets = meta::TypeList<Welcome, MatchStarted, Authenticate, CreatePlayer, Move>;
+    using Packets = meta::TypeList<Welcome, MatchStarted, Authenticate, CreatePlayer, Move, SetPosition>;
 }
 
 #endif //RTYPE_SERVER_GAME_HPP
