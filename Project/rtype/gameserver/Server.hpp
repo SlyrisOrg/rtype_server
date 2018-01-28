@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <thread>
+#include <unordered_map>
 #include <SFML/Graphics.hpp>
 #include <utils/Enums.hpp>
 #include <log/Logger.hpp>
@@ -20,13 +21,6 @@ namespace rtype
          Duo,
          Trio,
          Quatuor);
-
-//    ENUM(PeerID,
-//         All,
-//         One,
-//         Two,
-//         Three,
-//         Four);
 
     class GameServer
     {
@@ -50,8 +44,10 @@ namespace rtype
                     game::CreatePlayer cp;
                     cp.nickName = player.nickName;
                     cp.factionName = Faction::toString(player.faction);
-                    cp.pos = sf::Vector2f(200, 200);
+                    cp.pos = sf::Vector2f(200, 200 * _authToks.size());
                     _ioThread.broadcastPacket(cp);
+                    _idToNickname.emplace(senderID, cp.nickName);
+                    _authToks.erase(auth.authToken);
                 }
             } else {
                 //Disconnect
@@ -68,10 +64,8 @@ namespace rtype
                 }, [this, &peerAndPacket](auto &&v) {
                     using Decayed = std::decay_t<decltype(v)>;
                     if constexpr (!std::is_same_v<std::monostate, Decayed>) {
-                        _log(logging::Debug) << "Got unexpected apacket "
-                                             << Decayed::className()
-                                             << " from player " << peerAndPacket.id
-                                             << std::endl;
+                        _log(logging::Debug) << "Got unexpected packet " << Decayed::className()
+                                             << " from player " << peerAndPacket.id << std::endl;
                     }
                 });
 
@@ -106,6 +100,7 @@ namespace rtype
 
     private:
         ServerIOThread _ioThread;
+        std::unordered_map<size_t, std::string> _idToNickname;
 
         unsigned short _port;
         Mode _mode;
