@@ -20,7 +20,7 @@ namespace rtype
     public:
         bool loadConfig() noexcept
         {
-            if (!_loadFactionConfig("Bheet")) //|| _loadFactionConfig("Khooy") || _loadFactionConfig("Maul"))
+            if (!_loadFactionConfig("Bheet") || !_loadFactionConfig("Kooy") || !_loadFactionConfig("Maul"))
                 return false;
             return true;
         }

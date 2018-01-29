@@ -16,7 +16,9 @@
 #include <gameserver/ConfigManager.hpp>
 #include <entity/ECS.hpp>
 #include <entity/GameFactory.hpp>
+#include <entity/QuadTree.hpp>
 #include <lua/LuaManager.hpp>
+#include <entity/CollisionSystem.hpp>
 
 namespace rtype
 {
@@ -68,6 +70,7 @@ namespace rtype
                     cp.pos = sf::Vector2f(200, 200 * _authToks.size());
                     auto id = GameFactory::createPlayerSpaceShip(_cfg.factionToBounds(cp.factionName), cp.pos);
                     _nameToEntityID.emplace(cp.nickName, id);
+                    _quadTree.insert(id);
                     _players.push_back(std::move(cp));
                     _authToks.erase(auth.authToken);
                     if (_players.size() == static_cast<size_t>(_mode) + 1)
@@ -82,31 +85,25 @@ namespace rtype
         {
             if (canActOnEntity(senderID, move.ettName)) {
                 auto id = _nameToEntityID[move.ettName];
-                auto &box = _ettMgr[id].getComponent<rtype::components::BoundingBox>();
+                auto &lua = _ettMgr[id].getComponent<rtype::components::Lua>();
 
-                int xFact = 0;
-                int yFact = 0;
                 switch (move.dir) {
                     case game::Move::Up:
-                        yFact = -1;
+                        _luaMgr[lua.tableName]["moveUp"](id, move.time);
                         break;
                     case game::Move::Down:
-                        yFact = 1;
+                        _luaMgr[lua.tableName]["moveDown"](id, move.time);
                         break;
                     case game::Move::Left:
-                        xFact = -1;
+                        _luaMgr[lua.tableName]["moveLeft"](id, move.time);
                         break;
                     case game::Move::Right:
-                        xFact = 1;
+                        _luaMgr[lua.tableName]["moveRight"](id, move.time);
                         break;
                 }
-                auto pos = box.getPosition();
-                pos.x += xFact * move.time * 450;
-                pos.y += yFact * move.time * 450;
-                box.setPosition(pos);
 
                 game::SetPosition p;
-                p.pos = pos;
+                p.pos = _ettMgr[id].getComponent<rtype::components::BoundingBox>().getPosition();
                 p.ettName = move.ettName;
                 _ioThread.broadcastPacket(p);
             }
@@ -136,6 +133,7 @@ namespace rtype
         void _update(const sf::Time &elapsed) noexcept
         {
             _handleReceivedPackets();
+            _collisionSys.update(elapsed.asSeconds());
         }
 
         bool _loadConfig() noexcept
@@ -148,12 +146,20 @@ namespace rtype
             return true;
         }
 
+        void _registerAdditionalScriptFunctions() noexcept
+        {
+            _luaMgr["quadMove"] = [this](Entity::ID id) {
+                _quadTree.move(id);
+            };
+        }
+
         bool _loadScripts() noexcept
         {
             if (!_luaMgr.loadScript("player.lua")) {
                 _log(logging::Error) << "Unable to load scripts" << std::endl;
                 return false;
             }
+            _registerAdditionalScriptFunctions();
             _log(logging::Info) << "Successfully loaded scripts" << std::endl;
             return true;
         }
@@ -188,7 +194,10 @@ namespace rtype
         std::unordered_map<std::string, Entity::ID> _nameToEntityID;
         ConfigManager _cfg;
         EntityManager _ettMgr;
+        QuadTree<EntityManager> _quadTree{sf::FloatRect{0.f, 0.f, 1920.f, 1080.f}, _ettMgr};
         lua::LuaManager _luaMgr{_ettMgr, fs::path("assets/scripts/")};
+        CollisionSystem _collisionSys{_ettMgr, _quadTree, _luaMgr};
+
         std::vector<game::CreatePlayer> _players;
 
         unsigned short _port;
